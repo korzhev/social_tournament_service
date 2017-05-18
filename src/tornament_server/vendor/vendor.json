@@ -1,0 +1,67 @@
+{
+	"comment": "",
+	"ignore": "test",
+	"package": [
+		{
+			"checksumSHA1": "wQDvt4IYPhYIRlfhSJvASncoH/Y=",
+			"path": "github.com/labstack/echo",
+			"revision": "3359eae3067d1f6dba4785ea0377796405a34429",
+			"revisionTime": "2017-05-16T23:29:33Z"
+		},
+		{
+			"checksumSHA1": "R6DzcBLEP0BONPpsyr+11N7xh5w=",
+			"path": "github.com/labstack/gommon/color",
+			"revision": "1121fd3e243c202482226a7afe4dcd07ffc4139a",
+			"revisionTime": "2017-05-06T16:25:42Z"
+		},
+		{
+			"checksumSHA1": "uHA6zbtxzJce4r+6uk8zu11qkuk=",
+			"path": "github.com/labstack/gommon/log",
+			"revision": "1121fd3e243c202482226a7afe4dcd07ffc4139a",
+			"revisionTime": "2017-05-06T16:25:42Z"
+		},
+		{
+			"checksumSHA1": "uAVg4Tj5Fxi62z7/ScDEkHr6Ue8=",
+			"path": "github.com/mattn/go-colorable",
+			"revision": "ded68f7a9561c023e790de24279db7ebf473ea80",
+			"revisionTime": "2017-03-27T08:33:44Z"
+		},
+		{
+			"checksumSHA1": "U6lX43KDDlNOn+Z0Yyww+ZzHfFo=",
+			"path": "github.com/mattn/go-isatty",
+			"revision": "fc9e8d8ef48496124e79ae0df75490096eccf6fe",
+			"revisionTime": "2017-03-22T23:44:13Z"
+		},
+		{
+			"checksumSHA1": "LTOa3BADhwvT0wFCknPueQALm8I=",
+			"path": "github.com/valyala/bytebufferpool",
+			"revision": "e746df99fe4a3986f4d4f79e13c1e0117ce9c2f7",
+			"revisionTime": "2016-08-17T18:16:52Z"
+		},
+		{
+			"checksumSHA1": "gtG8jeB0fcTmKZf+6Vbcoa6nfec=",
+			"path": "github.com/valyala/fasttemplate",
+			"revision": "dcecefd839c4193db0d35b88ec65b4c12d360ab0",
+			"revisionTime": "2017-02-24T21:24:29Z"
+		},
+		{
+			"checksumSHA1": "W0j4I7QpxXlChjyhAojZmFjU6Bg=",
+			"path": "golang.org/x/crypto/acme",
+			"revision": "0fe963104e9d1877082f8fb38f816fcd97eb1d10",
+			"revisionTime": "2017-05-16T11:44:04Z"
+		},
+		{
+			"checksumSHA1": "oSIOyaAh0flaeiSxmcLHnuGMKDo=",
+			"path": "golang.org/x/crypto/acme/autocert",
+			"revision": "0fe963104e9d1877082f8fb38f816fcd97eb1d10",
+			"revisionTime": "2017-05-16T11:44:04Z"
+		},
+		{
+			"checksumSHA1": "43xyNnME4wkw48ohL9USDMTEpDo=",
+			"path": "golang.org/x/sys/unix",
+			"revision": "e62c3de784db939836898e5c19ffd41bece347da",
+			"revisionTime": "2017-05-05T08:48:05Z"
+		}
+	],
+	"rootPath": "tornament_server"
+}
