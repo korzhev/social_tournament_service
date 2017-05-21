@@ -24,8 +24,8 @@ type ResultResponse struct {
 }
 
 func AnnounceHandler(c echo.Context) error {
-	tournamentId, errTid := getUintParam(c.QueryParam("tournamentId"))
-	deposit, errDeposit := getUintParam(c.QueryParam("deposit"))
+	tournamentId, errTid := getUint64Param(c.QueryParam("tournamentId"))
+	deposit, errDeposit := getUint64Param(c.QueryParam("deposit"))
 	if validateId(errTid, tournamentId) || errDeposit != nil {
 		return &echo.HTTPError{http.StatusBadRequest, AnnounceErrMsg}
 	}
@@ -35,12 +35,12 @@ func AnnounceHandler(c echo.Context) error {
 }
 
 func JoinHandler(c echo.Context) error {
-	pid, errPid := getUintParam(c.QueryParam("playerId"))
-	tournamentId, errTid := getUintParam(c.QueryParam("tournamentId"))
+	pid, errPid := getUint64Param(c.QueryParam("playerId"))
+	tournamentId, errTid := getUint64Param(c.QueryParam("tournamentId"))
 	backersStr := strings.Split(c.QueryParam("backerId"), ",")
 	backers := []uint64{}
 	for _, backer := range backersStr {
-		id, err := getUintParam(backer)
+		id, err := getUint64Param(backer)
 		if err != nil {
 			return &echo.HTTPError{http.StatusBadRequest, JoinErrMsg}
 		}
@@ -56,7 +56,7 @@ func JoinHandler(c echo.Context) error {
 }
 
 func ResultHandler(c echo.Context) error {
-	tournamentId, errTid := getUintParam(c.FormValue("tournamentId"))
+	tournamentId, errTid := getUint64Param(c.FormValue("tournamentId"))
 	if validateId(errTid, tournamentId) {
 		return &echo.HTTPError{http.StatusBadRequest, ResultErrMsg}
 	}

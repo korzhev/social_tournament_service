@@ -3,20 +3,26 @@ package handlers
 import (
 	"strconv"
 	"tornament_server/models"
+
+	"github.com/jinzhu/gorm"
 )
+
+const WrongPlayerMsg = "Wrong playerId"
+
+var LocalDB *gorm.DB
 
 type OkResponse struct {
 	Message string `json:"message"`
 }
 
-func multiplier(number uint8) int64{
+func multiplier(number uint8) int64 {
 	if number%2 == 0 {
-		return 1
+		return -1
 	}
-	return -1
+	return 1
 }
 
-func getUintParam(str string) (uint64, error) {
+func getUint64Param(str string) (uint64, error) {
 	return strconv.ParseUint(str, 10, 64)
 }
 
