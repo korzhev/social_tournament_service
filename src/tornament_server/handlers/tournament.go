@@ -6,6 +6,8 @@ import (
 
 	"strings"
 
+	"tornament_server/models"
+
 	"github.com/labstack/echo"
 )
 
@@ -29,6 +31,16 @@ func AnnounceHandler(c echo.Context) error {
 	if validateId(errTid, tournamentId) || errDeposit != nil {
 		return &echo.HTTPError{http.StatusBadRequest, AnnounceErrMsg}
 	}
+
+	at := &models.TournamentAnnounce{
+		TournamentID: tournamentId,
+		Deposit:      deposit,
+	}
+	err := LocalDB.Create(at).Error
+	if err != nil {
+		return &echo.HTTPError{http.StatusBadRequest, err.Error()}
+	}
+
 	return c.JSON(
 		http.StatusOK,
 		&OkResponse{Message: fmt.Sprintf("Tournament %d was announced with deposit: %d", tournamentId, deposit)})

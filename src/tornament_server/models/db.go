@@ -17,8 +17,10 @@ func GetDB(params string) *gorm.DB {
 	var player Player
 	var mt MoneyTransaction
 	var tournament Tournament
+	var ta TournamentAnnounce
 	db.Model(&player).Related(&mt)
+	db.Model(&tournament).Related(&ta)
 	// Auto creating FK not working!
-	db.AutoMigrate(&player, &tournament, &mt)
+	db.AutoMigrate(&player, &tournament, &mt, &ta)
 	return db
 }

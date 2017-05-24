@@ -6,12 +6,17 @@ import (
 
 	"tornament_server/models"
 
+	"strconv"
+
 	"github.com/labstack/echo"
+	"github.com/pkg/errors"
 )
 
 const PlayerPointsErrMsg = "\"playerId\" and \"points\" are positive integers and required"
 
 const PlayerBalanceErrMsg = "\"playerId\" is positive integer and required"
+
+const COUNT_SUM_SQL = "SELECT SUM(Sum) FROM money_transactions WHERE player_id = ?"
 
 type BalanceResponse struct {
 	PlayerId string `json:"playerId"`
@@ -19,11 +24,41 @@ type BalanceResponse struct {
 }
 
 type ResultMT struct {
-	Score int64
+	Sum int64
 }
 
 func validationErrPidPoints(errPid error, errPoints error, pid uint64) bool {
 	return errPid != nil || errPoints != nil || pid == 0
+}
+
+func takePointsFromPlayer(pid uint64, points uint64) (int64, error) {
+	// transaction
+	tx := LocalDB.Begin()
+
+	var result ResultMT
+
+	err := tx.Raw(COUNT_SUM_SQL, pid).Scan(&result).Error
+	if err != nil {
+		tx.Rollback()
+		return result.Sum, errors.New(WrongPlayerMsg)
+	}
+	if result.Sum < int64(points) {
+		tx.Rollback()
+		return result.Sum, errors.New(fmt.Sprintf("Player has not enough money, only: %d", result.Sum))
+	}
+	mt := &models.MoneyTransaction{
+		Type:     models.TAKE,
+		Sum:      int64(points) * multiplier(models.TAKE),
+		PlayerID: pid,
+	}
+	errMT := tx.Create(mt).Error
+	if errMT != nil {
+		return result.Sum, errors.New(WrongPlayerMsg)
+	}
+
+	tx.Commit()
+	return result.Sum, nil
+	// end of transaction
 }
 
 func TakeHandler(c echo.Context) error {
@@ -33,36 +68,18 @@ func TakeHandler(c echo.Context) error {
 		return &echo.HTTPError{http.StatusBadRequest, PlayerPointsErrMsg}
 	}
 
-	//playerMT := []models.MoneyTransaction{}
-	//mt := &models.MoneyTransaction{
-	//	Type:     models.TAKE,
-	//	Sum:      int64(points) * multiplier(models.TAKE),
-	//	PlayerID: pid,
-	//}
-	// transaction
-	tx := LocalDB.Begin()
-	//var score []int64
-	type Result struct {
-		Score int64
+	sum, err := takePointsFromPlayer(pid, points)
+	if err != nil {
+		return &echo.HTTPError{http.StatusBadRequest, err.Error()}
 	}
-	var result []uint8
-	row := tx.Model(&models.MoneyTransaction{}).Where("player_id = ?", pid).Select(
-		"sum(sum)").Row()
-	//defer rows.Close()
-	err := row.Scan(result).Error()
-	fmt.Println(result, err)
-	//if err != nil {
-	//	fmt.Println(err.Error)
-	//	tx.Rollback()
-	//	return &echo.HTTPError{http.StatusBadRequest, "wrong"}
-	//}
-	//fmt.Println(row)
-
-	tx.Commit()
 
 	return c.JSON(
 		http.StatusOK,
-		&OkResponse{Message: fmt.Sprintf("%d points were taken from playerid: %d", points, pid)})
+		&OkResponse{Message: fmt.Sprintf(
+			"%d points were taken from playerid: %d. %d left",
+			points,
+			pid,
+			uint64(sum)-points)})
 }
 
 func FundHandler(c echo.Context) error {
@@ -91,7 +108,13 @@ func BalanceHandler(c echo.Context) error {
 	if validationErrPidPoints(errPid, nil, pid) {
 		return &echo.HTTPError{http.StatusBadRequest, PlayerBalanceErrMsg}
 	}
-	var balance uint64 = 100
 
-	return c.JSON(http.StatusOK, &BalanceResponse{PlayerId: string(pid), Balance: balance})
+	var result ResultMT
+
+	err := LocalDB.Raw(COUNT_SUM_SQL, pid).Scan(&result).Error
+	if err != nil {
+		return &echo.HTTPError{http.StatusBadRequest, PlayerBalanceErrMsg}
+	}
+
+	return c.JSON(http.StatusOK, &BalanceResponse{PlayerId: strconv.FormatUint(pid, 10), Balance: uint64(result.Sum)})
 }
