@@ -32,9 +32,9 @@ func AnnounceHandler(c echo.Context) error {
 		return &echo.HTTPError{http.StatusBadRequest, AnnounceErrMsg}
 	}
 
-	at := &models.TournamentAnnounce{
-		TournamentID: tournamentId,
-		Deposit:      deposit,
+	at := &models.Tournament{
+		Tournament: tournamentId,
+		Deposit:    deposit,
 	}
 	err := LocalDB.Create(at).Error
 	if err != nil {

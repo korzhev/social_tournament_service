@@ -31,9 +31,8 @@ func validationErrPidPoints(errPid error, errPoints error, pid uint64) bool {
 	return errPid != nil || errPoints != nil || pid == 0
 }
 
-func takePointsFromPlayer(pid uint64, points uint64) (int64, error) {
+func takePointsFromPlayer(tx *gorm.DB, pid uint64, points uint64) (int64, error) {
 	// transaction
-	tx := LocalDB.Begin()
 
 	var result ResultMT
 
@@ -56,7 +55,6 @@ func takePointsFromPlayer(pid uint64, points uint64) (int64, error) {
 		return result.Sum, errors.New(WrongPlayerMsg)
 	}
 
-	tx.Commit()
 	return result.Sum, nil
 	// end of transaction
 }
@@ -67,10 +65,12 @@ func TakeHandler(c echo.Context) error {
 	if validationErrPidPoints(errPid, errPoints, pid) {
 		return &echo.HTTPError{http.StatusBadRequest, PlayerPointsErrMsg}
 	}
-
-	sum, err := takePointsFromPlayer(pid, points)
+	tx := LocalDB.Begin()
+	sum, err := takePointsFromPlayer(tx, pid, points)
 	if err != nil {
 		return &echo.HTTPError{http.StatusBadRequest, err.Error()}
+	} else {
+		tx.Commit()
 	}
 
 	return c.JSON(
