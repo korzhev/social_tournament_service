@@ -25,6 +25,20 @@ type ResultResponse struct {
 	Winners []PlayerPrize `json:"winners"`
 }
 
+func getBackers(str string) ([]uint64, error) {
+	backersStr := strings.Split(str, ",")
+	backers := []uint64{}
+
+	for _, backer := range backersStr {
+		id, err := getUint64Param(backer)
+		if err != nil {
+			return nil, err
+		}
+		backers = append(backers, id)
+	}
+	return backers, nil
+}
+
 func AnnounceHandler(c echo.Context) error {
 	tournamentId, errTid := getUint64Param(c.QueryParam("tournamentId"))
 	deposit, errDeposit := getUint64Param(c.QueryParam("deposit"))
@@ -33,8 +47,8 @@ func AnnounceHandler(c echo.Context) error {
 	}
 
 	at := &models.Tournament{
-		Tournament: tournamentId,
-		Deposit:    deposit,
+		TournamentID: tournamentId,
+		Deposit:      deposit,
 	}
 	err := LocalDB.Create(at).Error
 	if err != nil {
@@ -49,18 +63,57 @@ func AnnounceHandler(c echo.Context) error {
 func JoinHandler(c echo.Context) error {
 	pid, errPid := getUint64Param(c.QueryParam("playerId"))
 	tournamentId, errTid := getUint64Param(c.QueryParam("tournamentId"))
-	backersStr := strings.Split(c.QueryParam("backerId"), ",")
-	backers := []uint64{}
-	for _, backer := range backersStr {
-		id, err := getUint64Param(backer)
-		if err != nil {
-			return &echo.HTTPError{http.StatusBadRequest, JoinErrMsg}
-		}
-		backers = append(backers, id)
+	backers, err := getBackers(c.QueryParam("backerId"))
+	if err != nil {
+		return &echo.HTTPError{http.StatusBadRequest, JoinErrMsg}
 	}
 	if validateId(errTid, tournamentId) || validateId(errPid, pid) {
 		return &echo.HTTPError{http.StatusBadRequest, JoinErrMsg}
 	}
+
+	tx := LocalDB.Begin()
+	tournament := &models.Tournament{}
+	tx.Where("tournament_id = ?", tournamentId).First(&tournament)
+
+	backersCount := uint64(len(backers))
+
+	if backersCount == 0 {
+		// payment for 1 player
+		_, err := takeMoney(tx, pid, tournament.Deposit, models.TOURNAMENT_DEPOSIT)
+		if err != nil {
+			tx.Rollback()
+			return &echo.HTTPError{http.StatusBadRequest, err.Error()}
+		}
+	} else {
+		// payment for player and backers
+		paymentSum := tournament.Deposit / (backersCount + 1)
+		_, err := takeMoney(tx, pid, paymentSum, models.TOURNAMENT_DEPOSIT)
+		if err != nil {
+			tx.Rollback()
+			return &echo.HTTPError{http.StatusBadRequest, err.Error()}
+		}
+		for _, player := range backers {
+			_, err := takeMoney(tx, player, paymentSum, models.BACKER_DONAT)
+			if err != nil {
+				tx.Rollback()
+				return &echo.HTTPError{http.StatusBadRequest, err.Error()}
+			}
+		}
+	}
+	// join tournament
+	je := &models.JoinEvent{
+		TournamentID: tournamentId,
+		PlayerId:     pid,
+		Backers:      backers,
+	}
+	errJE := tx.Create(je).Error
+	if errJE != nil {
+		tx.Rollback()
+		return &echo.HTTPError{http.StatusBadRequest, errJE.Error()}
+	}
+
+	tx.Commit()
+
 	return c.JSON(
 		http.StatusOK,
 		&OkResponse{Message: fmt.Sprintf(

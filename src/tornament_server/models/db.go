@@ -14,13 +14,16 @@ func GetDB(params string) *gorm.DB {
 		log.Println("DB Connection Failure")
 		log.Fatal(err)
 	}
-	var player Player
-	var mt MoneyTransaction
+	//db.LogMode(false)
+
+	//var mt MoneyTransaction
 	var tournament Tournament
-	var ta TournamentAnnounce
-	db.Model(&player).Related(&mt)
-	db.Model(&tournament).Related(&ta)
+	var je JoinEvent
+
+	db.Model(&tournament).Related(&je)
+
 	// Auto creating FK not working!
-	db.AutoMigrate(&player, &tournament, &mt, &ta)
+	//db.AutoMigrate(&tournament, &mt, &je)
+
 	return db
 }

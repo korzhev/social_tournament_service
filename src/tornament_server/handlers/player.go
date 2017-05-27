@@ -8,6 +8,7 @@ import (
 
 	"strconv"
 
+	"github.com/jinzhu/gorm"
 	"github.com/labstack/echo"
 	"github.com/pkg/errors"
 )
@@ -31,9 +32,7 @@ func validationErrPidPoints(errPid error, errPoints error, pid uint64) bool {
 	return errPid != nil || errPoints != nil || pid == 0
 }
 
-func takePointsFromPlayer(tx *gorm.DB, pid uint64, points uint64) (int64, error) {
-	// transaction
-
+func playerCanPay(tx *gorm.DB, pid uint64, points uint64) (int64, error) {
 	var result ResultMT
 
 	err := tx.Raw(COUNT_SUM_SQL, pid).Scan(&result).Error
@@ -45,18 +44,24 @@ func takePointsFromPlayer(tx *gorm.DB, pid uint64, points uint64) (int64, error)
 		tx.Rollback()
 		return result.Sum, errors.New(fmt.Sprintf("Player has not enough money, only: %d", result.Sum))
 	}
+	return result.Sum, nil
+}
+
+func takeMoney(tx *gorm.DB, pid uint64, points uint64, transactionType uint8) (uint64, error) {
+	sum, err := playerCanPay(tx, pid, points)
+	if err!= nil {
+		return uint64(sum), err
+	}
 	mt := &models.MoneyTransaction{
-		Type:     models.TAKE,
-		Sum:      int64(points) * multiplier(models.TAKE),
+		Type:     transactionType,
+		Sum:      int64(points) * multiplier(transactionType),
 		PlayerID: pid,
 	}
 	errMT := tx.Create(mt).Error
 	if errMT != nil {
-		return result.Sum, errors.New(WrongPlayerMsg)
+		return uint64(sum), errMT
 	}
-
-	return result.Sum, nil
-	// end of transaction
+	return uint64(sum) - points, nil
 }
 
 func TakeHandler(c echo.Context) error {
@@ -65,13 +70,15 @@ func TakeHandler(c echo.Context) error {
 	if validationErrPidPoints(errPid, errPoints, pid) {
 		return &echo.HTTPError{http.StatusBadRequest, PlayerPointsErrMsg}
 	}
+	// transaction
 	tx := LocalDB.Begin()
-	sum, err := takePointsFromPlayer(tx, pid, points)
+	result, err:= takeMoney(tx, pid, points, models.TAKE)
 	if err != nil {
+		tx.Rollback()
 		return &echo.HTTPError{http.StatusBadRequest, err.Error()}
-	} else {
-		tx.Commit()
 	}
+	tx.Commit()
+	// end of transaction
 
 	return c.JSON(
 		http.StatusOK,
@@ -79,7 +86,7 @@ func TakeHandler(c echo.Context) error {
 			"%d points were taken from playerid: %d. %d left",
 			points,
 			pid,
-			uint64(sum)-points)})
+			result)})
 }
 
 func FundHandler(c echo.Context) error {
