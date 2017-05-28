@@ -20,9 +20,9 @@ func main() {
 		Password: CONF.DB.Password,
 		Database: CONF.DB.Database,
 	})
-	//DB := models.GetDB(CONF.DB)
 	defer db.Close()
 	handlers.LocalDB = db
+
 	//routes
 	e.GET("/take", handlers.TakeHandler)
 	e.GET("/fund", handlers.FundHandler)

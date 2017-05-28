@@ -16,7 +16,7 @@ create unique index toutnaments_tournament_id_uindex
 
 create table join_events
 (
-  id serial not null
+  id bigserial not null
     constraint join_events_pkey
     primary key,
   tournament_id varchar(64) not null

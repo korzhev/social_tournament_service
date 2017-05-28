@@ -44,7 +44,6 @@ func JoinHandler(c echo.Context) error {
 	err := LocalDB.RunInTransaction(func(tx *pg.Tx) error {
 		// find tournament
 		errT := tx.Model(&tournament).Column("*").Where("tournament_id = ?", join.TournamentId).Select()
-		fmt.Println(tournament)
 		if errT != nil {
 			return errT
 		}
@@ -111,7 +110,6 @@ func ResultHandler(c echo.Context) error {
 				win.TournamentId,
 				w.PlayerId).Select()
 			if errJoins != nil {
-				fmt.Println(1)
 				return errJoins
 			}
 
@@ -121,8 +119,6 @@ func ResultHandler(c echo.Context) error {
 			// give prize to winner
 			_, errMT := newMoneyTransaction(tx, w.PlayerId, prize, models.PRIZE)
 			if errMT != nil {
-				fmt.Println(2)
-
 				return errMT
 			}
 
@@ -130,8 +126,6 @@ func ResultHandler(c echo.Context) error {
 			for _, b := range je.Backers {
 				_, errBMT := newMoneyTransaction(tx, b, prize, models.BACKER_PRIZE)
 				if errBMT != nil {
-					fmt.Println(3)
-
 					return errBMT
 				}
 			}
@@ -140,8 +134,6 @@ func ResultHandler(c echo.Context) error {
 		// delete announced tournament
 		_, errT := tx.Model(&models.Tournament{}).Where("tournament_id = ?", win.TournamentId).Delete()
 		if errT != nil {
-			fmt.Println(4)
-
 			return errT
 		}
 
