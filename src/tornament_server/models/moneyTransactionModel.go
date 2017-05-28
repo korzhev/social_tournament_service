@@ -7,6 +7,7 @@ const ( // +(odd) add money, -(even) remove money
 	BACKER_DONAT                        // -
 	_                                   // +
 	TOURNAMENT_DEPOSIT                  // -
+	BACKER_PRIZE                        // +
 )
 
 type MoneyTransaction struct {

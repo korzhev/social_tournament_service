@@ -7,7 +7,6 @@ import (
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 )
 
-
 func GetDB(params string) *gorm.DB {
 	db, err := gorm.Open("postgres", params)
 	if err != nil {
@@ -15,6 +14,7 @@ func GetDB(params string) *gorm.DB {
 		log.Fatal(err)
 	}
 	//db.LogMode(false)
+	//db.SetLogger(log.New(os.Stdout, "\r\n", 0))
 
 	//var mt MoneyTransaction
 	var tournament Tournament
