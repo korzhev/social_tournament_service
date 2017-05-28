@@ -1,4 +1,8 @@
 {
   "port": 8000,
-  "db": "user=gopher dbname=social_tournament sslmode=disable password=gopher"
+  "db": {
+    "user": "gopher",
+    "database": "social_tournament",
+    "password": "gopher"
+  }
 }

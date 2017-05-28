@@ -6,6 +6,7 @@ import (
 
 	"tornament_server/models"
 
+	"github.com/go-pg/pg"
 	"github.com/labstack/echo"
 )
 
@@ -14,24 +15,28 @@ func TakeHandler(c echo.Context) error {
 	if err := c.Bind(pp); err != nil {
 		return &echo.HTTPError{http.StatusBadRequest, PlayerPointsErrMsg}
 	}
-
+	var money uint64
 	// transaction
-	tx := LocalDB.Begin()
-	result, err := newMoneyTransaction(tx, pp.PlayerId, pp.Points, models.TAKE)
+	err := LocalDB.RunInTransaction(func(tx *pg.Tx) error {
+		result, err := newMoneyTransaction(tx, pp.PlayerId, pp.Points, models.TAKE)
+		if err != nil {
+			return err
+		}
+		money = result
+		return nil
+	})
+	// end of transaction
+
 	if err != nil {
-		tx.Rollback()
 		return &echo.HTTPError{http.StatusBadRequest, err.Error()}
 	}
-	tx.Commit()
-	// end of transaction
 
 	return c.JSON(
 		http.StatusOK,
 		&OkResponse{Message: fmt.Sprintf(
-			"%d points were taken from playerid: %d. %d left",
+			"%d points were taken from playerid: %v.",
 			pp.Points,
-			pp.PlayerId,
-			result)})
+			pp.PlayerId)})
 }
 
 func FundHandler(c echo.Context) error {
@@ -39,14 +44,19 @@ func FundHandler(c echo.Context) error {
 	if err := c.Bind(pp); err != nil {
 		return &echo.HTTPError{http.StatusBadRequest, PlayerPointsErrMsg}
 	}
-	_, err := newMoneyTransaction(LocalDB, pp.PlayerId, pp.Points, models.FUND)
+	mt := &models.MoneyTransaction{
+		Type:     models.FUND,
+		Sum:      int64(pp.Points),
+		PlayerID: pp.PlayerId,
+	}
+	err := LocalDB.Insert(&mt)
 	if err != nil {
 		return &echo.HTTPError{http.StatusBadRequest, WrongPlayerMsg}
 	}
 
 	return c.JSON(
 		http.StatusOK,
-		&OkResponse{Message: fmt.Sprintf("Funded %d points to playerid: %d", pp.Points, pp.PlayerId)})
+		&OkResponse{Message: fmt.Sprintf("Funded %v points to playerid: %v", pp.Points, pp.PlayerId)})
 }
 
 func BalanceHandler(c echo.Context) error {
@@ -56,10 +66,9 @@ func BalanceHandler(c echo.Context) error {
 	}
 
 	var result ResultMT
-
-	err := LocalDB.Raw(COUNT_SUM_SQL, pid).Scan(&result).Error
+	_, err := LocalDB.QueryOne(&result, COUNT_SUM_SQL, pid)
 	if err != nil {
-		return &echo.HTTPError{http.StatusBadRequest, PlayerBalanceErrMsg}
+		return &echo.HTTPError{http.StatusBadRequest, err.Error()}
 	}
 
 	return c.JSON(http.StatusOK, &BalanceResponse{PlayerId: pid, Balance: uint64(result.Sum)})

@@ -6,6 +6,7 @@ import (
 
 	"tornament_server/models"
 
+	"github.com/go-pg/pg"
 	"github.com/labstack/echo"
 )
 
@@ -18,7 +19,7 @@ func AnnounceHandler(c echo.Context) error {
 		TournamentID: announce.TournamentId,
 		Deposit:      announce.Deposit,
 	}
-	err := LocalDB.Create(at).Error
+	err := LocalDB.Insert(at)
 	if err != nil {
 		return &echo.HTTPError{http.StatusBadRequest, err.Error()}
 	}
@@ -26,7 +27,7 @@ func AnnounceHandler(c echo.Context) error {
 	return c.JSON(
 		http.StatusOK,
 		&OkResponse{Message: fmt.Sprintf(
-			"Tournament %d was announced with deposit: %d",
+			"Tournament %v was announced with deposit: %v",
 			announce.TournamentId,
 			announce.Deposit)})
 }
@@ -37,61 +38,58 @@ func JoinHandler(c echo.Context) error {
 		return &echo.HTTPError{http.StatusBadRequest, JoinErrMsg}
 	}
 
-	// transaction
-	tx := LocalDB.Begin()
-	// find tournament
 	tournament := &models.Tournament{}
-	errT := tx.Where("tournament_id = ?", join.TournamentId).First(&tournament).Error
-	if errT != nil {
-		tx.Rollback()
-		return &echo.HTTPError{http.StatusBadRequest, JoinErrMsg}
-	}
-
-	// payment
 	backersCount := uint64(len(join.Backers))
-	if backersCount == 0 {
-		// payment for 1 player
-		_, err := newMoneyTransaction(tx, join.PlayerId, tournament.Deposit, models.TOURNAMENT_DEPOSIT)
-		if err != nil {
-			tx.Rollback()
-			return &echo.HTTPError{http.StatusBadRequest, err.Error()}
+	// transaction
+	err := LocalDB.RunInTransaction(func(tx *pg.Tx) error {
+		// find tournament
+		errT := tx.Model(&tournament).Column("*").Where("tournament_id = ?", join.TournamentId).Select()
+		fmt.Println(tournament)
+		if errT != nil {
+			return errT
 		}
-	} else {
-		// payment for player and backers
 		paymentSum := tournament.Deposit / (backersCount + 1)
-		// for player
+
+		// take mone from player
 		_, err := newMoneyTransaction(tx, join.PlayerId, paymentSum, models.TOURNAMENT_DEPOSIT)
 		if err != nil {
-			tx.Rollback()
-			return &echo.HTTPError{http.StatusBadRequest, err.Error()}
+			return err
 		}
-		// for backers
-		for _, player := range join.Backers {
-			_, err := newMoneyTransaction(tx, player, paymentSum, models.BACKER_DONAT)
-			if err != nil {
-				tx.Rollback()
-				return &echo.HTTPError{http.StatusBadRequest, err.Error()}
+
+		// toke money from backers
+		if backersCount != 0 {
+			for _, player := range join.Backers {
+				_, err := newMoneyTransaction(tx, player, paymentSum, models.BACKER_DONAT)
+				if err != nil {
+					return err
+				}
 			}
 		}
-	}
 
-	// join tournament
-	je := &models.JoinEvent{
-		TournamentID: join.TournamentId,
-		PlayerId:     join.PlayerId,
-		Backers:      join.Backers,
+		// save player join event
+		je := &models.JoinEvent{
+			TournamentID: join.TournamentId,
+			PlayerId:     join.PlayerId,
+			Backers:      join.Backers,
+		}
+
+		errJE := tx.Insert(je)
+		if errJE != nil {
+			return errJE
+		}
+
+		return nil
+	})
+	// end of transaction
+
+	if err != nil {
+		return &echo.HTTPError{http.StatusBadRequest, err.Error()}
 	}
-	errJE := tx.Create(je).Error
-	if errJE != nil {
-		tx.Rollback()
-		return &echo.HTTPError{http.StatusBadRequest, JoinErrMsg}
-	}
-	tx.Commit()
 
 	return c.JSON(
 		http.StatusOK,
 		&OkResponse{Message: fmt.Sprintf(
-			"Player %d joined to tournament %d with backers: %v",
+			"Player %v joined to tournament %v with backers: %v",
 			join.PlayerId,
 			join.TournamentId,
 			join.Backers)})
@@ -103,40 +101,57 @@ func ResultHandler(c echo.Context) error {
 		return &echo.HTTPError{http.StatusBadRequest, ResultErrMsg}
 	}
 
-	tx := LocalDB.Begin()
-	for _, w := range win.Winners {
-		je := &models.JoinEvent{}
-		errJoins := tx.Where(
-			"tournament_id = ? and player_id = ?",
-			win.TournamentId,
-			w.PlayerId).First(&je).Error
-		if errJoins != nil {
-			tx.Rollback()
-			return &echo.HTTPError{http.StatusBadRequest, errJoins.Error()}
-		}
-		prize := w.Prize / uint64(len(je.Backers)+1)
-		_, errMT := newMoneyTransaction(tx, w.PlayerId, prize, models.PRIZE)
+	err := LocalDB.RunInTransaction(func(tx *pg.Tx) error {
+		// for each winner
+		for _, w := range win.Winners {
+			// find winner join event
+			je := &models.JoinEvent{}
+			errJoins := tx.Model(&je).Column("*").Where(
+				"tournament_id = ? and player_id = ?",
+				win.TournamentId,
+				w.PlayerId).Select()
+			if errJoins != nil {
+				fmt.Println(1)
+				return errJoins
+			}
 
-		if errMT != nil {
-			tx.Rollback()
-			return &echo.HTTPError{http.StatusBadRequest, errMT.Error()}
-		}
-		for _, b := range je.Backers {
-			_, errBMT := newMoneyTransaction(tx, b, prize, models.BACKER_PRIZE)
-			if errBMT != nil {
-				tx.Rollback()
-				return &echo.HTTPError{http.StatusBadRequest, errBMT.Error()}
+			// count prize
+			prize := w.Prize / uint64(len(je.Backers)+1)
+
+			// give prize to winner
+			_, errMT := newMoneyTransaction(tx, w.PlayerId, prize, models.PRIZE)
+			if errMT != nil {
+				fmt.Println(2)
+
+				return errMT
+			}
+
+			// give bonus for each backer
+			for _, b := range je.Backers {
+				_, errBMT := newMoneyTransaction(tx, b, prize, models.BACKER_PRIZE)
+				if errBMT != nil {
+					fmt.Println(3)
+
+					return errBMT
+				}
 			}
 		}
+
+		// delete announced tournament
+		_, errT := tx.Model(&models.Tournament{}).Where("tournament_id = ?", win.TournamentId).Delete()
+		if errT != nil {
+			fmt.Println(4)
+
+			return errT
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return &echo.HTTPError{http.StatusBadRequest, err.Error()}
 	}
 
-	errT := tx.Where("tournament_id = ?").Delete(models.Tournament{}).Error
-	if errT != nil {
-		tx.Rollback()
-		return &echo.HTTPError{http.StatusBadRequest, errT.Error()}
-	}
-
-	tx.Commit()
 	return c.JSON(
 		http.StatusOK,
 		&ResultResponse{win.Winners})

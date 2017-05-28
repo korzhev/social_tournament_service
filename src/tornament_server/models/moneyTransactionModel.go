@@ -11,8 +11,8 @@ const ( // +(odd) add money, -(even) remove money
 )
 
 type MoneyTransaction struct {
-	ID       uint64 `gorm:"primary_key"`
-	PlayerID uint64 `gorm:"index;not null"`
-	Type     uint8  `gorm:"not null"`
-	Sum      int64  `gorm:"not null"`
+	ID       uint64
+	PlayerID string
+	Type     uint8
+	Sum      int64
 }

@@ -16,7 +16,7 @@ create unique index toutnaments_tournament_id_uindex
 
 create table join_events
 (
-  id bigserial not null
+  id serial not null
     constraint join_events_pkey
     primary key,
   tournament_id varchar(64) not null
@@ -24,13 +24,15 @@ create table join_events
     references tournaments (tournament_id)
     on update cascade on delete cascade,
   player_id varchar(64) not null,
-  backers varchar(64) []
+  backers jsonb
 )
 ;
 
-create unique index join_events_player_id_tournament_id_uindex
-  on join_events (player_id, tournament_id)
+create unique index join_events_tournament_id_player_id_uindex
+  on join_events (tournament_id, player_id)
 ;
+
+
 
 
 

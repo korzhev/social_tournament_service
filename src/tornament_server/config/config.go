@@ -7,8 +7,12 @@ import (
 )
 
 type Cfg struct {
-	Port uint16  `json:"port"`
-	DB   string `json:"db"`
+	Port uint16
+	DB   struct {
+		User     string
+		Password string
+		Database string
+	}
 }
 
 func GetConf() *Cfg {
