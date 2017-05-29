@@ -19,4 +19,6 @@ bin/
 pkg/
 .idea/
 .cache/
-src/tornament_server/vendor/*/
+src/tournament_server/vendor/*/
+
+tournament.env

@@ -3,6 +3,7 @@
   "db": {
     "user": "gopher",
     "database": "social_tournament",
-    "password": "gopher"
+    "password": "gopher",
+    "addr": "localhost:5432"
   }
 }

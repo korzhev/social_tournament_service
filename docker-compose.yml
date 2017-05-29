@@ -1,0 +1,16 @@
+version: '3'
+services:
+  db:
+    image: postgres:latest
+    ports:
+      - "5432:5432"
+  server:
+    build: ./src/tournament_server
+    image: tournament_server
+    command: "go run server.go"
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    env_file:
+      - tournament.env
