@@ -44,8 +44,8 @@ or
 - **/fund** - GET with *playerId* - string, required; *points* - uint64, required
 - **/take** - GET with *playerId* - string, required; *points* - uint64, required
 - **/balance** - GET with *playerId* - string, required
-- **/announceTournament** - GET with *playerId* - string, required; *points* - uint64, required
-- **/joinTournament** - GET with *playerId* - string, required; *points* - uint64, required
+- **/announceTournament** - GET with *tournamentId* - string, required; *deposit* - uint64, required
+- **/joinTournament** - GET with *tournamentId* - string, required; *playerId* - string, required; *backerId* list of strings
 - **/resultTournament** - POST with JSON: 
 ```json
 {
@@ -58,3 +58,5 @@ or
     ]
 }
 ```
+### Examples
+
