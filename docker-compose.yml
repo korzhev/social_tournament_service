@@ -3,9 +3,11 @@ services:
   db:
     image: postgres:latest
     ports:
-      - "5432:5432"
+      - "5433:5433"
   server:
-    build: ./src/tournament_server
+    build:
+      context: ./src/tournament_server
+      dockerfile: Dockerfile-alternative
     image: tournament_server
     command: "go run server.go"
     ports:
