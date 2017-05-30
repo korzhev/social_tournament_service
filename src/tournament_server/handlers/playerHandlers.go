@@ -51,7 +51,7 @@ func FundHandler(c echo.Context) error {
 	}
 	err := LocalDB.Insert(&mt)
 	if err != nil {
-		return &echo.HTTPError{http.StatusBadRequest, WrongPlayerMsg}
+		return &echo.HTTPError{http.StatusBadRequest, err.Error()}
 	}
 
 	return c.JSON(
