@@ -44,12 +44,17 @@ func FundHandler(c echo.Context) error {
 	if err := c.Bind(pp); err != nil {
 		return &echo.HTTPError{http.StatusBadRequest, PlayerPointsErrMsg}
 	}
-	mt := &models.MoneyTransaction{
-		Type:     models.FUND,
-		Sum:      int64(pp.Points),
-		PlayerID: pp.PlayerId,
-	}
-	err := LocalDB.Insert(&mt)
+
+	var money uint64
+	// transaction
+	err := LocalDB.RunInTransaction(func(tx *pg.Tx) error {
+		result, err := newMoneyTransaction(tx, pp.PlayerId, pp.Points, models.FUND)
+		if err != nil {
+			return err
+		}
+		money = result
+		return nil
+	})
 	if err != nil {
 		return &echo.HTTPError{http.StatusBadRequest, err.Error()}
 	}
@@ -66,10 +71,10 @@ func BalanceHandler(c echo.Context) error {
 	}
 
 	var result ResultMT
-	_, err := LocalDB.QueryOne(&result, COUNT_SUM_SQL, pid)
+	_, err := LocalDB.Query(&result, COUNT_SUM_SQL, pid)
 	if err != nil {
 		return &echo.HTTPError{http.StatusBadRequest, err.Error()}
 	}
 
-	return c.JSON(http.StatusOK, &BalanceResponse{PlayerId: pid, Balance: uint64(result.Sum)})
+	return c.JSON(http.StatusOK, &BalanceResponse{PlayerId: pid, Balance: result.Balance})
 }

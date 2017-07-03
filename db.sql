@@ -43,13 +43,13 @@ create table money_transactions
     primary key,
   player_id varchar(64) not null,
   type smallint not null,
-  sum bigint not null
+  sum bigint not null,
+  balance bigint default 0 not null,
+  last_tx boolean default false not null
 )
 ;
 
-create index money_transactions_player_id_index
-  on money_transactions (player_id)
+create index money_transactions_player_id_last_tx_index
+  on money_transactions (player_id, last_tx)
 ;
-
-
 

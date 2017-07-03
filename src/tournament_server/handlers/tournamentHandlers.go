@@ -55,7 +55,7 @@ func JoinHandler(c echo.Context) error {
 			return err
 		}
 
-		// toke money from backers
+		// take money from backers
 		if backersCount != 0 {
 			for _, player := range join.Backers {
 				_, err := newMoneyTransaction(tx, player, paymentSum, models.BACKER_DONAT)

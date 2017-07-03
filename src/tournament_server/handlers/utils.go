@@ -9,7 +9,8 @@ import (
 	"github.com/go-pg/pg"
 )
 
-const COUNT_SUM_SQL = "SELECT SUM(Sum) FROM money_transactions WHERE player_id = ?"
+const COUNT_SUM_SQL = "SELECT balance FROM money_transactions WHERE player_id = ? AND last_tx = TRUE FOR UPDATE"
+const UPDATE_LAST_TX = "UPDATE money_transactions SET last_tx = FALSE WHERE player_id = ? AND last_tx = TRUE"
 
 var LocalDB *pg.DB
 
@@ -18,42 +19,62 @@ type OkResponse struct {
 }
 
 type ResultMT struct {
-	Sum int64
+	Balance uint64
+}
+type ResultUpdateLastMT struct {
+	LastTX bool
 }
 
-func playerCanPay(tx *pg.Tx, pid string, points uint64) (int64, error) {
+func playerCanPay(tx *pg.Tx, pid string, points uint64) (uint64, error) {
 	var result ResultMT
-	_, err := tx.QueryOne(&result, COUNT_SUM_SQL, pid)
+	_, err := tx.Query(&result, COUNT_SUM_SQL, pid)
 	if err != nil {
-		return result.Sum, err
+		return result.Balance, err
 	}
-	if result.Sum < int64(points) {
-		return result.Sum, errors.New(fmt.Sprintf("Player has not enough money, only: %d", result.Sum))
+	if result.Balance < points {
+		return result.Balance, errors.New(fmt.Sprintf("Player has not enough money, only: %d OR another transaction is being", result.Balance))
 	}
-	return result.Sum, nil
+	return result.Balance, nil
 }
 
 func newMoneyTransaction(tx *pg.Tx, pid string, points uint64, transactionType uint8) (uint64, error) {
-	var sum int64
+	var balance uint64
+	var oldBalance uint64
 	multi := multiplier(transactionType)
 	if multi < 0 {
 		current, err := playerCanPay(tx, pid, points)
-		sum = current
+		oldBalance = current
 		if err != nil {
-			return uint64(sum), err
+			return current, err
 		}
+		balance = current - points
+	} else {
+		var result ResultMT
+		_, err := tx.Query(&result, COUNT_SUM_SQL, pid)
+		if err != nil {
+			return result.Balance, err
+		}
+		oldBalance = result.Balance
+		balance = result.Balance + points
 	}
+	var result ResultUpdateLastMT
 
+	_, err := tx.Query(&result, UPDATE_LAST_TX, pid)
+	if err != nil {
+		return oldBalance, err
+	}
 	mt := &models.MoneyTransaction{
 		Type:     transactionType,
-		Sum:      int64(points) * multi,
+		Sum:      points,
 		PlayerID: pid,
+		Balance:  balance,
+		LastTx:   true,
 	}
 	errMT := tx.Insert(mt)
 	if errMT != nil {
-		return uint64(sum), errMT
+		return oldBalance, errMT
 	}
-	return uint64(sum + mt.Sum), nil
+	return mt.Sum, nil
 }
 
 func multiplier(number uint8) int64 {

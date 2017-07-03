@@ -14,5 +14,7 @@ type MoneyTransaction struct {
 	ID       uint64
 	PlayerID string
 	Type     uint8
-	Sum      int64
+	Sum      uint64
+	Balance  uint64
+	LastTx	 bool
 }

@@ -1,3 +1,7 @@
+# Notes 03.07.2017
+-   New database schema: money_transaction table should be updated. See `db.sql`.
+-   If multiple parallel requests were made to update the same player balance, only first will be processed, rest ones will be rejected.
+
 ## Requirements
 -   go 1.8
 -   posgres 9.6
@@ -53,11 +57,11 @@ All responses are JSON
 - **/resultTournament** - POST with JSON: 
 ```json
 {
-    "tournamentId": <string>,
+    "tournamentId": "<string>",
     "winners": [
         {
-            "playerId": <string>,
-            "prize": <uint64>
+            "playerId": "<string>",
+            "prize": "<uint64>"
         }
     ]
 }
