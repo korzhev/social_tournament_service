@@ -31,8 +31,11 @@ func playerCanPay(tx *pg.Tx, pid string, points uint64) (uint64, error) {
 	if err != nil {
 		return result.Balance, err
 	}
+	if result.Balance == 0 {
+		return result.Balance, errors.New("Player hasn't money, OR another transaction is being processed")
+	}
 	if result.Balance < points {
-		return result.Balance, errors.New(fmt.Sprintf("Player has not enough money, only: %d OR another transaction is being", result.Balance))
+		return result.Balance, errors.New(fmt.Sprintf("Player has not enough money, only: %d", result.Balance))
 	}
 	return result.Balance, nil
 }
